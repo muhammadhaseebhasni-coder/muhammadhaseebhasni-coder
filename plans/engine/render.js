@@ -41,5 +41,25 @@ const FPS = 30;
   ff.stdin.end();
   await once(ff, "close");
   await browser.close();
-  console.log("video:", out);
+  console.log("video (silent):", out);
+
+  // Mix voiceover clips (vo/seg<N>.mp3 from voiceover.py) at their start times.
+  const voCfg = path.join(dir, "voiceover.json");
+  if (fs.existsSync(voCfg)) {
+    const segs = JSON.parse(fs.readFileSync(voCfg, "utf8")).segments;
+    const clips = segs.map((s, i) => ({ at: s.at, file: path.join(dir, "vo", `seg${i}.mp3`) })).filter(c => fs.existsSync(c.file));
+    if (clips.length) {
+      const args = ["-y", "-loglevel", "error", "-i", out];
+      clips.forEach(c => args.push("-i", c.file));
+      const delays = clips.map((c, i) => `[${i + 1}:a]adelay=${Math.round(c.at * 1000)}:all=1[a${i}]`).join(";");
+      const mix = clips.map((_, i) => `[a${i}]`).join("") + `amix=inputs=${clips.length}:normalize=0,apad[aout]`;
+      const voiced = path.join(dir, "video-voiceover.mp4");
+      args.push("-filter_complex", `${delays};${mix}`, "-map", "0:v", "-map", "[aout]", "-c:v", "copy",
+        "-c:a", "aac", "-b:a", "192k", "-shortest", "-movflags", "+faststart", voiced);
+      const mx = spawn("ffmpeg", args, { stdio: "inherit" });
+      const [code] = await once(mx, "close");
+      if (code !== 0) throw new Error("audio mix failed");
+      console.log("video (voiceover):", voiced);
+    }
+  }
 })().catch(e => { console.error(e); process.exit(1); });

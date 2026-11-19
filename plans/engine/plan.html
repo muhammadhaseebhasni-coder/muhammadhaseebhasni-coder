@@ -19,14 +19,22 @@ const OX = (W - PW * S) / 2, OY = 430;
 const X = ft => OX + ft * S, Y = ft => OY + ft * S;
 const T = 0.75;                    // wall thickness (9")
 
-// timeline (seconds)
-const F0 = 0.5, F1 = 12.0, FLOOR_LEN = 11.5, SUM = 22.0;
-const DURATION = 26.5;
-const STILLS = [
-  { name: "ground-floor.png", t: F0 + 10.0 },
-  { name: "first-floor.png", t: F1 + 9.5 },
-  { name: "summary.png", t: DURATION - 0.05 }
-];
+// timeline (seconds) — a plan may override any of this with window.PLAN.timing
+const TM = Object.assign({
+  floors: [{ start: 0.5 }, { start: 12.0 }],
+  summary: { start: 22.0, question: 2.2, button: 2.8 },
+  duration: 26.5
+}, P.timing || {});
+const FT = P.floors.map((_, i) => Object.assign({
+  walls: { start: 0.4, span: 2.6, dur: 0.9 },
+  rooms: { start: 3.6, span: 3.4, dur: 0.5 },
+  openings: { start: 7.3, dur: 1.0 }
+}, TM.floors[i] || {}));
+const SUM = TM.summary.start, DURATION = TM.duration;
+const STILLS = P.floors.map((f, i) => ({
+  name: f.name.toLowerCase().replace(/\s+/g, "-") + ".png",
+  t: (FT[i + 1] ? FT[i + 1].start : SUM) - 0.6
+})).concat([{ name: "summary.png", t: DURATION - 0.05 }]);
 
 const COL = {
   porch: "#E5E7EB", green: "#DCFCE7", drawing: "#FEF3C7", lounge: "#DBEAFE", bed: "#EDE9FE",
@@ -202,13 +210,15 @@ function roomLabel(rm, p) {
 }
 
 // ---------- one floor ----------
-function floorSVG(fl, u, alpha) {
+function floorSVG(fl, ft, u, alpha) {
   if (alpha <= 0) return "";
   const nW = fl.walls.length, nR = fl.rooms.length;
-  const wp = i => eo(prog(u, 0.4 + i * (2.6 / nW), 0.9));
-  const rp = j => eo(prog(u, 3.6 + j * (3.4 / nR), 0.5));
-  const lp = j => prog(u, 3.75 + j * (3.4 / nR), 0.55);
-  const op = prog(u, 7.3, 1.0);
+  const W_ = ft.walls, R_ = ft.rooms, O_ = ft.openings;
+  const rs = j => Array.isArray(R_.times) ? R_.times[j] : R_.start + j * (R_.span / nR);
+  const wp = i => eo(prog(u, W_.start + i * (W_.span / nW), W_.dur));
+  const rp = j => eo(prog(u, rs(j), R_.dur || 0.5));
+  const lp = j => prog(u, rs(j) + 0.15, 0.55);
+  const op = prog(u, O_.start, O_.dur);
   let o = `<g opacity="${alpha}">`;
   fl.rooms.forEach((rm, j) => o += roomShape(rm, rp(j)));
   if (fl.stairs) o += stairsSVG(fl.stairs, op);
@@ -282,13 +292,13 @@ function summarySVG(t) {
       <polyline points="199,${y - 12} 207,${y - 3} 222,${y - 22}" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
       <text x="252" y="${y}" font-family="Inter" font-weight="700" font-size="40" fill="#fff">${esc(it)}</text></g>`;
   });
-  const q = eo(prog(t, SUM + 2.2, 0.6));
+  const q = eo(prog(t, SUM + TM.summary.question, 0.6));
   const by = 1250 + sm.items.length * 0 + 80;
   o += `<g opacity="${q}">
     <text x="${W / 2}" y="${by}" text-anchor="middle" font-family="Inter" font-weight="700" font-size="40" fill="#fff">${esc(sm.question)}</text>
     <text x="${W / 2}" y="${by + 62}" text-anchor="middle" font-family="Inter" font-weight="800" font-size="40" fill="${ACCENT}">${esc(sm.cta)}</text></g>`;
-  const b = prog(t, SUM + 2.8, 0.6), bk = 0.7 + 0.3 * eob(b);
-  const pulse = 1 + 0.03 * Math.sin(Math.max(0, t - SUM - 3.4) * 6);
+  const b = prog(t, SUM + TM.summary.button, 0.6), bk = 0.7 + 0.3 * eob(b);
+  const pulse = 1 + 0.03 * Math.sin(Math.max(0, t - SUM - TM.summary.button - 0.6) * 6);
   o += `<g opacity="${clamp(b * 1.5)}" transform="translate(${W / 2} ${by + 200}) scale(${bk * pulse})">
     <rect x="-330" y="-50" width="660" height="100" rx="50" fill="#DC2626"/>
     <text x="0" y="14" text-anchor="middle" font-family="Inter" font-weight="900" font-size="38" fill="#fff" letter-spacing="2">${esc(sm.button)}</text></g>`;
@@ -296,15 +306,15 @@ function summarySVG(t) {
 }
 
 function render(t) {
-  const fi = (t < F1 || P.floors.length < 2) ? 0 : 1;
-  const F = fi === 0 ? F0 : F1;
-  const u = t - F;
+  let fi = 0;
+  while (fi + 1 < FT.length && t >= FT[fi + 1].start) fi++;
+  const u = t - FT[fi].start;
   const fadeIn = prog(u, 0, 0.4);
-  const fadeOut = fi === 0 && P.floors.length > 1 ? 1 - prog(u, FLOOR_LEN - 0.5, 0.5) : 1;
+  const fadeOut = FT[fi + 1] ? 1 - prog(t, FT[fi + 1].start - 0.5, 0.5) : 1;
   const fl = P.floors[fi];
   let o = `<defs>${DEFS}</defs>`;
   o += frameChrome(t, fl.name, prog(u, 0.05, 0.5) * fadeOut);
-  o += floorSVG(fl, u, fadeIn * fadeOut);
+  o += floorSVG(fl, FT[fi], u, fadeIn * fadeOut);
   o += summarySVG(t);
   document.getElementById("s").innerHTML = o;
 }

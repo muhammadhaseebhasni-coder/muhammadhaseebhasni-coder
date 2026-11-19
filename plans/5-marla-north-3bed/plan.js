@@ -8,6 +8,17 @@ window.PLAN = {
   scale: 30,
   road: "ROAD  ·  NORTH",
   footer: "Concept layout only · Get final drawings approved by a licensed architect",
+  // Timeline synced to the Urdu voiceover (voiceover.json). Room times follow the order of `rooms` in each floor.
+  timing: {
+    floors: [
+      { start: 0.5, walls: { start: 0.4, span: 4.0, dur: 0.9 },
+        rooms: { times: [6.78, 7.52, 8.1, 8.66, 9.1, 9.34, 11.07, 9.97, 13.55] }, openings: { start: 14.6, dur: 1.0 } },
+      { start: 18.0, walls: { start: 0.0, span: 0.8, dur: 0.5 },
+        rooms: { times: [4.66, 1.38, 2.17, 2.66, 5.14, 5.5, 5.88, 6.61, 7.29, 7.9] }, openings: { start: 8.3, dur: 1.0 } }
+    ],
+    summary: { start: 27.6, question: 3.6, button: 6.8 },
+    duration: 37.5
+  },
   floors: [
     {
       name: "GROUND FLOOR",
