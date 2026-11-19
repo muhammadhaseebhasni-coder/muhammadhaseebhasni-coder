@@ -1,0 +1,315 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  html, body { margin: 0; padding: 0; background: #0B1220; }
+  svg { display: block; }
+</style>
+<script>/*PLAN*/</script>
+</head>
+<body>
+<svg id="s" xmlns="http://www.w3.org/2000/svg" width="1080" height="1920" viewBox="0 0 1080 1920"></svg>
+<script>
+const W = 1080, H = 1920;
+const P = window.PLAN;
+const S = P.scale;                 // pixels per foot
+const PW = P.plot.w, PD = P.plot.d;
+const OX = (W - PW * S) / 2, OY = 430;
+const X = ft => OX + ft * S, Y = ft => OY + ft * S;
+const T = 0.75;                    // wall thickness (9")
+
+// timeline (seconds)
+const F0 = 0.5, F1 = 12.0, FLOOR_LEN = 11.5, SUM = 22.0;
+const DURATION = 26.5;
+const STILLS = [
+  { name: "ground-floor.png", t: F0 + 10.0 },
+  { name: "first-floor.png", t: F1 + 9.5 },
+  { name: "summary.png", t: DURATION - 0.05 }
+];
+
+const COL = {
+  porch: "#E5E7EB", green: "#DCFCE7", drawing: "#FEF3C7", lounge: "#DBEAFE", bed: "#EDE9FE",
+  bath: "#CFFAFE", kitchen: "#FFE4E6", stair: "#F1F5F9", dress: "#FCE7F3", void: "url(#hatch)"
+};
+const WALL = "#1E293B", INK = "#0F172A", SUBINK = "#475569", ACCENT = "#FBBF24";
+
+const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
+const prog = (t, a, d) => clamp((t - a) / d);
+const eo = x => 1 - Math.pow(1 - x, 3);
+const eob = x => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); };
+const esc = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;");
+
+function fmt(ft) {
+  const inch = Math.round(ft * 12);
+  return `${Math.floor(inch / 12)}'-${inch % 12}"`;
+}
+function clearSize(r) {
+  const d = (c, max) => (c <= 0 || c >= max) ? T : T / 2;
+  return [r[2] - r[0] - d(r[0], PW) - d(r[2], PW), r[3] - r[1] - d(r[1], PD) - d(r[3], PD)];
+}
+
+// ---------- walls ----------
+function wallGeom(w) {
+  const t = w.t || T;
+  const perpMax = w.o === "h" ? PD : PW, alongMax = w.o === "h" ? PW : PD;
+  const lo = w.c <= 0 ? 0 : (w.c >= perpMax ? perpMax - t : w.c - t / 2);
+  const a = w.a <= 0 ? 0 : w.a - T / 2, b = w.b >= alongMax ? alongMax : w.b + T / 2;
+  return { lo, t, a, b };
+}
+function rectAlong(w, lo, t, s, e) {
+  return w.o === "h" ? [X(s), Y(lo), (e - s) * S, t * S] : [X(lo), Y(s), t * S, (e - s) * S];
+}
+function wallSVG(w, p) {
+  if (p <= 0) return "";
+  const { lo, t, a, b } = wallGeom(w);
+  const end = a + (b - a) * p;
+  const gaps = (w.g || []).slice().sort((m, n) => m.a - n.a);
+  let pieces = [], cur = a;
+  for (const g of gaps) { if (g.a > cur) pieces.push([cur, g.a]); cur = Math.max(cur, g.b); }
+  if (cur < b) pieces.push([cur, b]);
+  let o = "";
+  for (let [s, e] of pieces) {
+    if (s >= end) continue;
+    e = Math.min(e, end);
+    const [x, y, ww, hh] = rectAlong(w, lo, t, s, e);
+    o += `<rect x="${x}" y="${y}" width="${ww}" height="${hh}" fill="${w.rail ? "#64748B" : WALL}"/>`;
+  }
+  return o;
+}
+function openingSVG(w, g, p) {
+  if (p <= 0 || g.type === "open") return "";
+  const { lo, t } = wallGeom(w);
+  const mid = lo + t / 2;
+  const pt = (along, perp) => w.o === "h" ? [X(along), Y(perp)] : [X(perp), Y(along)];
+  const op = `opacity="${p}"`;
+  if (g.type === "window" || g.type === "slide") {
+    const [x, y, ww, hh] = rectAlong(w, lo, t, g.a, g.b);
+    let o = `<g ${op}><rect x="${x}" y="${y}" width="${ww}" height="${hh}" fill="#fff" stroke="#0EA5E9" stroke-width="2.5"/>`;
+    if (g.type === "window") {
+      const [x1, y1] = pt(g.a, mid), [x2, y2] = pt(g.b, mid);
+      o += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#0EA5E9" stroke-width="2"/>`;
+    } else {
+      const half = (g.a + g.b) / 2;
+      const [ax, ay, aw, ah] = rectAlong(w, lo + t * 0.15, t * 0.3, g.a, half + 0.3);
+      const [bx, by, bw, bh] = rectAlong(w, lo + t * 0.55, t * 0.3, half - 0.3, g.b);
+      o += `<rect x="${ax}" y="${ay}" width="${aw}" height="${ah}" fill="#BAE6FD" stroke="#0EA5E9" stroke-width="1.5"/>`;
+      o += `<rect x="${bx}" y="${by}" width="${bw}" height="${bh}" fill="#BAE6FD" stroke="#0EA5E9" stroke-width="1.5"/>`;
+    }
+    return o + "</g>";
+  }
+  if (g.type === "gate") {
+    const [x1, y1] = pt(g.a, mid), [x2, y2] = pt(g.b, mid);
+    const [cx, cy] = pt((g.a + g.b) / 2, mid);
+    return `<g ${op}><line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${ACCENT}" stroke-width="7" stroke-dasharray="14 8"/>
+      <rect x="${cx - 38}" y="${cy - 15}" width="76" height="30" rx="6" fill="${INK}"/>
+      <text x="${cx}" y="${cy + 7}" text-anchor="middle" font-family="Inter" font-weight="800" font-size="19" fill="${ACCENT}" letter-spacing="2">GATE</text></g>`;
+  }
+  if (g.type === "door") {
+    const hingeA = g.h !== "b";
+    const hinge = hingeA ? g.a : g.b, other = hingeA ? g.b : g.a;
+    const L = (g.b - g.a) * S;
+    const dir = Math.sign(other - hinge);
+    const u = w.o === "h" ? [dir, 0] : [0, dir];
+    const n = w.o === "h" ? [0, g.s] : [g.s, 0];
+    const [hx, hy] = pt(hinge, mid);
+    const [cx, cy] = pt(other, mid);
+    const th = (Math.PI / 2) * eo(p);
+    const tx = hx + L * (Math.cos(th) * u[0] + Math.sin(th) * n[0]);
+    const ty = hy + L * (Math.cos(th) * u[1] + Math.sin(th) * n[1]);
+    const sweep = (u[0] * n[1] - u[1] * n[0]) > 0 ? 1 : 0;
+    return `<path d="M${cx} ${cy} A${L} ${L} 0 0 ${sweep} ${tx} ${ty}" fill="none" stroke="#94A3B8" stroke-width="2" stroke-dasharray="6 5"/>
+      <line x1="${hx}" y1="${hy}" x2="${tx}" y2="${ty}" stroke="#B45309" stroke-width="5" stroke-linecap="round"/>`;
+  }
+  return "";
+}
+
+// ---------- stairs (dog-leg) ----------
+function stairsSVG(st, p) {
+  if (p <= 0) return "";
+  const [x1, y1, x2, y2] = st.r;
+  const ix1 = x1 + T / 2, iy1 = y1 + T / 2, ix2 = x2 - (x2 >= PW ? T : T / 2), iy2 = y2 - T / 2;
+  const mid = (iy1 + iy2) / 2, lw = (iy2 - iy1) / 2, lx = ix2 - lw;
+  let o = `<g opacity="${p}">`;
+  const n = Math.floor((lx - ix1) / (10 / 12));
+  for (let i = 1; i <= n; i++) {
+    const x = ix1 + i * (lx - ix1) / (n + 1);
+    o += `<line x1="${X(x)}" y1="${Y(iy1)}" x2="${X(x)}" y2="${Y(iy2)}" stroke="#94A3B8" stroke-width="2"/>`;
+  }
+  o += `<line x1="${X(lx)}" y1="${Y(iy1)}" x2="${X(lx)}" y2="${Y(iy2)}" stroke="#94A3B8" stroke-width="2"/>`;
+  o += `<rect x="${X(ix1)}" y="${Y(mid) - 4}" width="${(lx - ix1) * S}" height="8" fill="${WALL}"/>`;
+  const ay1 = (iy1 + mid) / 2, ay2 = (mid + iy2) / 2, ax = (lx + ix2) / 2;
+  o += `<polyline points="${X(ix1 + 0.4)},${Y(ay1)} ${X(ax)},${Y(ay1)} ${X(ax)},${Y(ay2)} ${X(ix1 + 0.9)},${Y(ay2)}" fill="none" stroke="#DC2626" stroke-width="3"/>`;
+  o += `<polygon points="${X(ix1 + 0.4)},${Y(ay2)} ${X(ix1 + 1.1)},${Y(ay2) - 9} ${X(ix1 + 1.1)},${Y(ay2) + 9}" fill="#DC2626"/>`;
+  const labs = st.labels || ["UP"];
+  const lp = labs.length === 1 ? [[(ix1 + lx) / 2, ay1]] : [[(ix1 + lx) / 2, ay1], [(ix1 + lx) / 2, ay2]];
+  labs.forEach((l, i) => {
+    const [lx_, ly_] = lp[i];
+    o += `<rect x="${X(lx_) - 26}" y="${Y(ly_) - 15}" width="52" height="30" rx="6" fill="#fff" stroke="#DC2626" stroke-width="2"/>
+      <text x="${X(lx_)}" y="${Y(ly_) + 7}" text-anchor="middle" font-family="Inter" font-weight="800" font-size="19" fill="#DC2626">${l}</text>`;
+  });
+  return o + "</g>";
+}
+
+// ---------- car (top view) ----------
+function carSVG(c, p) {
+  if (!c || p <= 0) return "";
+  const w = 6 * S, l = 14.2 * S, x = X(c.x) - w / 2, y = Y(c.y) - l / 2 - (1 - eo(p)) * 60;
+  return `<g opacity="${p}">
+    <rect x="${x - 6}" y="${y + l * 0.16}" width="12" height="44" rx="4" fill="#111827"/>
+    <rect x="${x + w - 6}" y="${y + l * 0.16}" width="12" height="44" rx="4" fill="#111827"/>
+    <rect x="${x - 6}" y="${y + l * 0.72}" width="12" height="44" rx="4" fill="#111827"/>
+    <rect x="${x + w - 6}" y="${y + l * 0.72}" width="12" height="44" rx="4" fill="#111827"/>
+    <rect x="${x}" y="${y}" width="${w}" height="${l}" rx="42" fill="#2563EB"/>
+    <rect x="${x + 16}" y="${y + l * 0.22}" width="${w - 32}" height="${l * 0.16}" rx="14" fill="#BFDBFE"/>
+    <rect x="${x + 20}" y="${y + l * 0.40}" width="${w - 40}" height="${l * 0.30}" rx="12" fill="#1D4ED8"/>
+    <rect x="${x + 18}" y="${y + l * 0.72}" width="${w - 36}" height="${l * 0.12}" rx="12" fill="#BFDBFE"/>
+    <rect x="${x + 14}" y="${y + 6}" width="28" height="12" rx="5" fill="#FDE68A"/>
+    <rect x="${x + w - 42}" y="${y + 6}" width="28" height="12" rx="5" fill="#FDE68A"/>
+  </g>`;
+}
+
+// ---------- rooms ----------
+function roomShape(rm, p) {
+  if (p <= 0) return "";
+  const fill = COL[rm.f] || "#fff";
+  if (rm.poly) return `<polygon points="${rm.poly.map(([x, y]) => `${X(x)},${Y(y)}`).join(" ")}" fill="${fill}" opacity="${p}"/>`;
+  const r = rm.r;
+  return `<rect x="${X(r[0])}" y="${Y(r[1])}" width="${(r[2] - r[0]) * S}" height="${(r[3] - r[1]) * S}" fill="${fill}" opacity="${p}"/>`;
+}
+function roomLabel(rm, p) {
+  if (rm.hideLabel || p <= 0) return "";
+  const r = rm.r;
+  const [cx, cy] = rm.lab || [(r[0] + r[2]) / 2, (r[1] + r[3]) / 2];
+  const lines = rm.n.split("\n");
+  const wpx = r ? (r[2] - r[0]) * S - 22 : (rm.lw || 160);
+  const longest = Math.max(...lines.map(l => l.length));
+  const fs = Math.min(26, wpx / (longest * 0.72));
+  let sub = rm.sub || "";
+  if (r && rm.dims !== false) { const [cw, ch] = clearSize(r); sub = `${fmt(cw)} × ${fmt(ch)}`; }
+  const dfs = sub ? Math.min(20, wpx / (sub.length * 0.62)) : 0;
+  const halo = rm.f === "void" ? ` stroke="#fff" stroke-width="6" paint-order="stroke" stroke-linejoin="round"` : "";
+  const totalH = lines.length * fs * 1.15 + (sub ? dfs * 1.5 : 0);
+  let y = Y(cy) - totalH / 2 + fs * 0.85;
+  const k = 0.6 + 0.4 * eob(p);
+  let o = `<g opacity="${clamp(p * 1.4)}" transform="translate(${X(cx)} ${Y(cy)}) scale(${k}) translate(${-X(cx)} ${-Y(cy)})">`;
+  for (const l of lines) {
+    o += `<text x="${X(cx)}" y="${y}" text-anchor="middle" font-family="Inter" font-weight="800" font-size="${fs}" fill="${INK}" letter-spacing="0.5"${halo}>${esc(l)}</text>`;
+    y += fs * 1.15;
+  }
+  if (sub) o += `<text x="${X(cx)}" y="${y + dfs * 0.35}" text-anchor="middle" font-family="Inter" font-weight="600" font-size="${dfs}" fill="${SUBINK}"${halo}>${esc(sub)}</text>`;
+  return o + "</g>";
+}
+
+// ---------- one floor ----------
+function floorSVG(fl, u, alpha) {
+  if (alpha <= 0) return "";
+  const nW = fl.walls.length, nR = fl.rooms.length;
+  const wp = i => eo(prog(u, 0.4 + i * (2.6 / nW), 0.9));
+  const rp = j => eo(prog(u, 3.6 + j * (3.4 / nR), 0.5));
+  const lp = j => prog(u, 3.75 + j * (3.4 / nR), 0.55);
+  const op = prog(u, 7.3, 1.0);
+  let o = `<g opacity="${alpha}">`;
+  fl.rooms.forEach((rm, j) => o += roomShape(rm, rp(j)));
+  if (fl.stairs) o += stairsSVG(fl.stairs, op);
+  o += carSVG(fl.car, op);
+  fl.walls.forEach((w, i) => o += wallSVG(w, wp(i)));
+  fl.walls.forEach(w => (w.g || []).forEach(g => o += openingSVG(w, g, op)));
+  fl.rooms.forEach((rm, j) => o += roomLabel(rm, lp(j)));
+  return o + "</g>";
+}
+
+// ---------- static frame pieces ----------
+const DEFS = `
+  <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0B1220"/><stop offset="1" stop-color="#16233F"/></linearGradient>
+  <pattern id="hatch" width="18" height="18" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+    <rect width="18" height="18" fill="#F0FDF4"/><line x1="0" y1="0" x2="0" y2="18" stroke="#86EFAC" stroke-width="5"/></pattern>
+  <filter id="sh" x="-10%" y="-10%" width="120%" height="120%"><feDropShadow dx="0" dy="10" stdDeviation="16" flood-color="#000" flood-opacity="0.45"/></filter>`;
+
+function frameChrome(t, floorName, pillPop) {
+  const ti = eo(prog(t, 0, 0.8));
+  const dims = eo(prog(t, 0.4, 0.9));
+  let o = `<rect width="${W}" height="${H}" fill="url(#bg)"/>`;
+  o += `<g opacity="${ti}" transform="translate(0 ${(1 - ti) * -30})">
+    <text x="${W / 2}" y="118" text-anchor="middle" font-family="Inter" font-weight="900" font-size="74" fill="#fff" letter-spacing="1">${esc(P.title)}</text>
+    <text x="${W / 2}" y="182" text-anchor="middle" font-family="Inter" font-weight="700" font-size="31" fill="${ACCENT}" letter-spacing="1">${esc(P.subtitle)}</text></g>`;
+  const pk = 0.7 + 0.3 * eob(pillPop);
+  const pw = floorName.length * 21 + 70;
+  o += `<g opacity="${clamp(pillPop * 1.5)}" transform="translate(${W / 2} 245) scale(${pk})">
+    <rect x="${-pw / 2}" y="-25" width="${pw}" height="50" rx="25" fill="${ACCENT}"/>
+    <text x="0" y="11" text-anchor="middle" font-family="Inter" font-weight="900" font-size="30" fill="#0B1220" letter-spacing="3">${esc(floorName)}</text></g>`;
+  o += `<rect x="50" y="292" width="980" height="1548" rx="30" fill="#fff" filter="url(#sh)" opacity="${clamp(ti * 1.5)}"/>`;
+  // road
+  o += `<g opacity="${dims}">
+    <rect x="72" y="312" width="936" height="58" rx="10" fill="#374151"/>
+    <line x1="90" y1="341" x2="990" y2="341" stroke="#F9FAFB" stroke-width="4" stroke-dasharray="26 18"/>
+    <rect x="${W / 2 - 120}" y="322" width="240" height="38" rx="8" fill="#374151"/>
+    <text x="${W / 2}" y="350" text-anchor="middle" font-family="Inter" font-weight="800" font-size="24" fill="#F9FAFB" letter-spacing="4">${esc(P.road)}</text>`;
+  // plot outline
+  o += `<rect x="${X(0)}" y="${Y(0)}" width="${PW * S}" height="${PD * S}" fill="#FAFAF9" stroke="#CBD5E1" stroke-width="2" stroke-dasharray="10 8"/>`;
+  // dimension lines
+  const dy = OY - 32, dx = OX - 40;
+  o += `<line x1="${X(0)}" y1="${dy}" x2="${X(PW)}" y2="${dy}" stroke="${SUBINK}" stroke-width="2"/>
+    <line x1="${X(0)}" y1="${dy - 10}" x2="${X(0)}" y2="${dy + 10}" stroke="${SUBINK}" stroke-width="2"/>
+    <line x1="${X(PW)}" y1="${dy - 10}" x2="${X(PW)}" y2="${dy + 10}" stroke="${SUBINK}" stroke-width="2"/>
+    <rect x="${W / 2 - 52}" y="${dy - 16}" width="104" height="32" fill="#fff"/>
+    <text x="${W / 2}" y="${dy + 9}" text-anchor="middle" font-family="Inter" font-weight="800" font-size="24" fill="${INK}">${PW}'-0"</text>
+    <line x1="${dx}" y1="${Y(0)}" x2="${dx}" y2="${Y(PD)}" stroke="${SUBINK}" stroke-width="2"/>
+    <line x1="${dx - 10}" y1="${Y(0)}" x2="${dx + 10}" y2="${Y(0)}" stroke="${SUBINK}" stroke-width="2"/>
+    <line x1="${dx - 10}" y1="${Y(PD)}" x2="${dx + 10}" y2="${Y(PD)}" stroke="${SUBINK}" stroke-width="2"/>
+    <g transform="translate(${dx} ${Y(PD / 2)}) rotate(-90)"><rect x="-52" y="-16" width="104" height="32" fill="#fff"/>
+    <text x="0" y="9" text-anchor="middle" font-family="Inter" font-weight="800" font-size="24" fill="${INK}">${PD}'-0"</text></g>`;
+  // north arrow
+  const nx = 973, ny = 500;
+  o += `<circle cx="${nx}" cy="${ny}" r="32" fill="#fff" stroke="${INK}" stroke-width="3"/>
+    <polygon points="${nx},${ny - 26} ${nx + 13},${ny + 16} ${nx},${ny + 7} ${nx - 13},${ny + 16}" fill="#DC2626"/>
+    <text x="${nx}" y="${ny - 44}" text-anchor="middle" font-family="Inter" font-weight="900" font-size="28" fill="${INK}">N</text></g>`;
+  o += `<text x="${W / 2}" y="1885" text-anchor="middle" font-family="Inter" font-weight="500" font-size="22" fill="#94A3B8" opacity="${ti}">${esc(P.footer)}</text>`;
+  return o;
+}
+
+function summarySVG(t) {
+  const s = eo(prog(t, SUM, 0.6));
+  if (s <= 0) return "";
+  const sm = P.summary;
+  let o = `<g opacity="${s}"><rect x="50" y="292" width="980" height="1548" rx="30" fill="#0B1220" opacity="0.96"/>`;
+  o += `<text x="${W / 2}" y="${520 + (1 - s) * 40}" text-anchor="middle" font-family="Inter" font-weight="900" font-size="58" fill="${ACCENT}" letter-spacing="3">${esc(sm.title)}</text>`;
+  sm.items.forEach((it, i) => {
+    const p = eo(prog(t, SUM + 0.4 + i * 0.22, 0.45));
+    const y = 640 + i * 84;
+    o += `<g opacity="${p}" transform="translate(${(1 - p) * -60} 0)">
+      <circle cx="210" cy="${y - 12}" r="22" fill="#22C55E"/>
+      <polyline points="199,${y - 12} 207,${y - 3} 222,${y - 22}" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+      <text x="252" y="${y}" font-family="Inter" font-weight="700" font-size="40" fill="#fff">${esc(it)}</text></g>`;
+  });
+  const q = eo(prog(t, SUM + 2.2, 0.6));
+  const by = 1250 + sm.items.length * 0 + 80;
+  o += `<g opacity="${q}">
+    <text x="${W / 2}" y="${by}" text-anchor="middle" font-family="Inter" font-weight="700" font-size="40" fill="#fff">${esc(sm.question)}</text>
+    <text x="${W / 2}" y="${by + 62}" text-anchor="middle" font-family="Inter" font-weight="800" font-size="40" fill="${ACCENT}">${esc(sm.cta)}</text></g>`;
+  const b = prog(t, SUM + 2.8, 0.6), bk = 0.7 + 0.3 * eob(b);
+  const pulse = 1 + 0.03 * Math.sin(Math.max(0, t - SUM - 3.4) * 6);
+  o += `<g opacity="${clamp(b * 1.5)}" transform="translate(${W / 2} ${by + 200}) scale(${bk * pulse})">
+    <rect x="-330" y="-50" width="660" height="100" rx="50" fill="#DC2626"/>
+    <text x="0" y="14" text-anchor="middle" font-family="Inter" font-weight="900" font-size="38" fill="#fff" letter-spacing="2">${esc(sm.button)}</text></g>`;
+  return o + "</g>";
+}
+
+function render(t) {
+  const fi = (t < F1 || P.floors.length < 2) ? 0 : 1;
+  const F = fi === 0 ? F0 : F1;
+  const u = t - F;
+  const fadeIn = prog(u, 0, 0.4);
+  const fadeOut = fi === 0 && P.floors.length > 1 ? 1 - prog(u, FLOOR_LEN - 0.5, 0.5) : 1;
+  const fl = P.floors[fi];
+  let o = `<defs>${DEFS}</defs>`;
+  o += frameChrome(t, fl.name, prog(u, 0.05, 0.5) * fadeOut);
+  o += floorSVG(fl, u, fadeIn * fadeOut);
+  o += summarySVG(t);
+  document.getElementById("s").innerHTML = o;
+}
+window.render = render; window.DURATION = DURATION; window.STILLS = STILLS;
+render(DURATION - 0.05);
+</script>
+</body>
+</html>
