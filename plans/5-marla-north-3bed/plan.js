@@ -8,6 +8,15 @@ window.PLAN = {
   scale: 30,
   road: "ROAD  ·  NORTH",
   footer: "Concept layout only · Get final drawings approved by a licensed architect",
+  // 3D video settings (plans/engine/3d.html)
+  view3d: {
+    title: "5 MARLA HOUSE",
+    subtitle: "25' × 45'  |  NORTH FACING  |  3D VIEW",
+    footer: "Concept 3D visual · Get final drawings approved by an architect",
+    endLine1: "3 BED  ·  3 BATH  ·  CAR PORCH",
+    endLine2: "Which plot size next? Comment below!",
+    button: "FOLLOW FOR MORE PLANS"
+  },
   // Timeline synced to the Urdu voiceover (voiceover.json). Room times follow the order of `rooms` in each floor.
   timing: {
     floors: [
@@ -22,6 +31,30 @@ window.PLAN = {
   floors: [
     {
       name: "GROUND FLOOR",
+      // 3D: walls inside these areas are low boundary walls [x1, y1, x2, y2, height ft]
+      low: [[11, 0, 25, 5, 4]],
+      furniture: [
+        { t: "car", x: 5.5, y: 9.0 },
+        { t: "tree", x: 23.0, y: 2.6, s: 0.8 }, { t: "plant", x: 13.0, y: 1.6 }, { t: "plant", x: 16.5, y: 1.4 }, { t: "plant", x: 20.0, y: 1.4 },
+        { t: "rug", x: 18.0, y: 11.5, w: 8, d: 9, c: "#9c6b4e" },
+        { t: "sofa", x: 22.7, y: 11.5, w: 7.5, d: 2.8, rot: -90, c: "#8a8f98" },
+        { t: "armchair", x: 13.7, y: 9.2, rot: 90 }, { t: "armchair", x: 13.7, y: 13.8, rot: 90 },
+        { t: "ctable", x: 18.2, y: 11.5, w: 2.4, d: 4.2 },
+        { t: "plant", x: 23.4, y: 6.4 }, { t: "plant", x: 23.4, y: 16.7 },
+        { t: "rug", x: 7.0, y: 24.4, w: 6.5, d: 5.5, c: "#6b7a8f" },
+        { t: "sofa", x: 2.2, y: 24.8, w: 5.6, d: 2.8, rot: 90, c: "#4b5563" },
+        { t: "ctable", x: 6.6, y: 24.8, w: 2, d: 3.2 },
+        { t: "tv", x: 13.0, y: 23.7, w: 4.2, rot: -90 },
+        { t: "dining", x: 9.8, y: 28.6, w: 4.5, d: 3 },
+        { t: "counter", x: 18.8, y: 26.4, w: 6.85, d: 2, stove: true },
+        { t: "counter", x: 23.25, y: 27.4, w: 4.05, d: 2, rot: -90, sink: true },
+        { t: "fridge", x: 23.1, y: 30.4, rot: -90 },
+        { t: "bed", x: 4.1, y: 38.3, w: 5, d: 6.6, rot: 90, c: "#7c9cbf" },
+        { t: "nightstand", x: 1.6, y: 34.9, rot: 90 }, { t: "nightstand", x: 1.6, y: 41.7, rot: 90 },
+        { t: "wardrobe", x: 6.5, y: 43.3, w: 6, d: 1.9, rot: 180 },
+        { t: "toilet", x: 16.5, y: 38.4, rot: -90 }, { t: "basin", x: 14.5, y: 39.0, rot: 180 },
+        { t: "tree", x: 21.8, y: 41.0, s: 0.75 }, { t: "plant", x: 19.4, y: 33.6 }, { t: "plant", x: 14.6, y: 43.4 }, { t: "plant", x: 24.0, y: 43.6 }
+      ],
       rooms: [
         { n: "CAR PORCH", r: [0, 0, 11, 18], f: "porch", lab: [5.5, 16.2] },
         { n: "LAWN", r: [11, 0, 25, 5], f: "green", dims: false },
@@ -53,6 +86,29 @@ window.PLAN = {
     },
     {
       name: "FIRST FLOOR",
+      low: [[0, 0, 25, 5, 3.5]],
+      furniture: [
+        { t: "bistro", x: 20.5, y: 2.6 }, { t: "plant", x: 1.6, y: 2.4 }, { t: "plant", x: 24.0, y: 2.4 }, { t: "plant", x: 13.0, y: 1.6 },
+        { t: "rug", x: 5.6, y: 11.4, w: 8.5, d: 8, c: "#b08968" },
+        { t: "bed", x: 4.2, y: 11.3, w: 6, d: 6.8, rot: 90, c: "#c06c5b" },
+        { t: "nightstand", x: 1.6, y: 7.4, rot: 90 }, { t: "nightstand", x: 1.6, y: 15.2, rot: 90 },
+        { t: "tv", x: 16.0, y: 11.3, w: 4, rot: -90 },
+        { t: "armchair", x: 13.4, y: 7.2, rot: 200, c: "#d4a373" },
+        { t: "toilet", x: 23.5, y: 9.0, rot: -90 }, { t: "basin", x: 20.4, y: 10.0, rot: 180 }, { t: "shower", x: 23.0, y: 6.6 },
+        { t: "wardrobe", x: 23.3, y: 14.6, w: 5.6, d: 1.9, rot: -90 }, { t: "wardrobe", x: 20.2, y: 16.7, w: 3.8, d: 1.8, rot: 180 },
+        { t: "rug", x: 7.0, y: 24.6, w: 6.5, d: 6, c: "#8f7a66" },
+        { t: "sofa", x: 2.2, y: 24.8, w: 6.5, d: 2.8, rot: 90, c: "#3f6e70" },
+        { t: "ctable", x: 6.6, y: 24.8, w: 2, d: 3.2 },
+        { t: "tv", x: 13.0, y: 23.7, w: 4.2, rot: -90 },
+        { t: "armchair", x: 4.6, y: 29.8, rot: 160, c: "#c9a46b" },
+        { t: "washer", x: 23.2, y: 27.0, rot: -90 }, { t: "washer", x: 23.2, y: 29.3, rot: -90 },
+        { t: "shelf", x: 19.0, y: 26.2, w: 5, d: 1.4 },
+        { t: "bed", x: 4.1, y: 37.6, w: 5, d: 6.6, rot: 90, c: "#8bb174" },
+        { t: "nightstand", x: 1.6, y: 34.3, rot: 90 },
+        { t: "wardrobe", x: 6.8, y: 43.3, w: 5.5, d: 1.9, rot: 180 },
+        { t: "desk", x: 11.6, y: 40.6, w: 3.6, d: 1.9, rot: -90 },
+        { t: "toilet", x: 16.5, y: 38.4, rot: -90 }, { t: "basin", x: 14.5, y: 39.0, rot: 180 }
+      ],
       rooms: [
         { n: "BALCONY", r: [0, 0, 25, 5], f: "green", dims: false },
         { n: "MASTER BEDROOM", r: [0, 5, 17, 18], f: "bed" },
