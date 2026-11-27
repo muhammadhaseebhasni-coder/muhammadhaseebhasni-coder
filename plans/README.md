@@ -21,4 +21,12 @@ Each folder has:
    `python3 plans/engine/voiceover.py plans/<folder> voiceover-3d.json` and `node plans/engine/render.js plans/<folder> --3d`.
    The 3D view uses three.js r149 (`engine/vendor/three.min.js`, MIT licence in `engine/vendor/three-LICENSE`).
 
+## Corner makeovers
+| Folder | Design |
+|---|---|
+| `corner-computer-desk/` | 6' × 6' corner: wood slat wall, L-shape desk, drawers, floating shelves with LED, wall cubbies, monitor + PC, chair, decor |
+
+Each corner folder has `corner.js` (items, timing, camera), `voiceover.json`, stills (`before.png`, `after-day.png`, `after-night.png`, `slider.png`),
+`video.mp4` and `video-voiceover.mp4`. Render with `node plans/engine/render.js plans/<corner-folder>` (the engine is `engine/corner.html`).
+
 Plans are concept layouts only. Get final drawings checked by a licensed architect against local bylaws.

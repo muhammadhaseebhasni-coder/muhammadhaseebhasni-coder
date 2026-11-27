@@ -1,6 +1,7 @@
 // Usage: node plans/engine/render.js <plan-folder> [--3d] [--stills-only]
 // Reads <plan-folder>/plan.js and writes PNG stills + a 1080x1920 MP4 (Shorts/Reels) into that folder.
 // --3d renders the 3D walkthrough (3d.html) to video-3d.mp4 and uses voiceover-3d.json for narration.
+// A folder containing corner.js (instead of plan.js) is rendered as a corner makeover (corner.html).
 const { chromium } = require("playwright");
 const fs = require("fs");
 const path = require("path");
@@ -14,11 +15,13 @@ const sfx = is3d ? "-3d" : "";
 const FPS = 30;
 
 (async () => {
-  const tpl = fs.readFileSync(path.join(__dirname, is3d ? "3d.html" : "plan.html"), "utf8");
+  const isCorner = fs.existsSync(path.join(dir, "corner.js"));
+  const tpl = fs.readFileSync(path.join(__dirname, isCorner ? "corner.html" : is3d ? "3d.html" : "plan.html"), "utf8");
   const html = tpl.replace("/*THREE*/", () => fs.readFileSync(path.join(__dirname, "vendor", "three.min.js"), "utf8"))
-    .replace("/*PLAN*/", () => fs.readFileSync(path.join(dir, "plan.js"), "utf8"));
+    .replace(isCorner ? "/*DESIGN*/" : "/*PLAN*/", () => fs.readFileSync(path.join(dir, isCorner ? "corner.js" : "plan.js"), "utf8"));
   const browser = await chromium.launch();
   const page = await browser.newPage({ viewport: { width: 1080, height: 1920 } });
+  page.on("pageerror", e => console.error("page error:", e.message));
   await page.setContent(html, { waitUntil: "load" });
   await page.evaluate(() => document.fonts.ready);
   const duration = await page.evaluate(() => window.DURATION);
