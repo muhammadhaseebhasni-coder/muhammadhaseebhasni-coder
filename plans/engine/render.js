@@ -24,6 +24,11 @@ const FPS = 30;
   page.on("pageerror", e => console.error("page error:", e.message));
   await page.setContent(html, { waitUntil: "load" });
   await page.evaluate(() => document.fonts.ready);
+  if (process.argv.includes("--check")) {
+    const res = await page.evaluate(() => window.CHECK ? window.CHECK() : ["no checker for this mode"]);
+    console.log(res.length ? "OVERLAPS:\n" + res.join("\n") : "No overlaps found.");
+    await browser.close(); return;
+  }
   const duration = await page.evaluate(() => window.DURATION);
   const stills = await page.evaluate(() => window.STILLS);
 
